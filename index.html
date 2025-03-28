@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Canteen Pre-Order System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .notification {
+            position: fixed;
+            right: 1rem;
+            top: 1rem;
+            transform: translateY(-200%);
+            transition: transform 0.3s ease-in-out;
+        }
+        .notification.show {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body class="p-4">
+    <!-- Login/Register Section -->
+    <div id="auth-section" class="max-w-md mx-auto glass-effect p-6 space-y-4">
+        <h2 class="text-2xl font-bold text-white text-center">Digital Canteen</h2>
+        <div class="space-y-2">
+            <input type="text" id="username" placeholder="Username" class="w-full p-2 rounded">
+            <input type="password" id="password" placeholder="Password" class="w-full p-2 rounded">
+            <button onclick="handleAuth()" class="w-full bg-indigo-600 text-white p-2 rounded hover:bg-indigo-700">
+                Login / Register
+            </button>
+        </div>
+    </div>
+
+    <!-- Student Portal -->
+    <div id="student-portal" class="hidden max-w-4xl mx-auto space-y-6">
+        <div class="flex justify-between items-center">
+            <div class="text-white">
+                <h2 class="text-2xl font-bold">Welcome, <span id="student-name">Student</span></h2>
+            </div>
+            <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded">Logout</button>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-6">
+            <!-- Menu Section -->
+            <div class="glass-effect p-6">
+                <h3 class="text-xl font-bold text-white mb-4">Today's Menu</h3>
+                <div id="menu-items" class="space-y-4"></div>
+            </div>
+
+            <!-- Order Section -->
+            <div class="glass-effect p-6">
+                <h3 class="text-xl font-bold text-white mb-4">Your Order</h3>
+                <div class="space-y-4">
+                    <div id="order-items" class="space-y-2"></div>
+                    <select id="time-slot" class="w-full p-2 rounded">
+                        <option value="">Select pickup time</option>
+                        <option value="12:00">12:00 PM</option>
+                        <option value="12:30">12:30 PM</option>
+                        <option value="13:00">1:00 PM</option>
+                    </select>
+                    <button onclick="placeOrder()" class="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600">
+                        Place Order
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Portal -->
+    <div id="admin-portal" class="hidden max-w-4xl mx-auto space-y-6">
+        <div class="flex justify-between items-center">
+            <h2 class="text-2xl font-bold text-white">Admin Dashboard</h2>
+            <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded">Logout</button>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-6">
+            <!-- Menu Management -->
+            <div class="glass-effect p-6">
+                <h3 class="text-xl font-bold text-white mb-4">Manage Menu</h3>
+                <div class="space-y-4">
+                    <input type="text" id="item-name" placeholder="Item Name" class="w-full p-2 rounded">
+                    <input type="number" id="item-price" placeholder="Price" class="w-full p-2 rounded">
+                    <input type="text" id="item-image" placeholder="Image URL" class="w-full p-2 rounded">
+                    <button onclick="addMenuItem()" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">
+                        Add Item
+                    </button>
+                </div>
+                <div id="admin-menu-items" class="mt-4 space-y-2"></div>
+            </div>
+
+            <!-- Order Management -->
+            <div class="glass-effect p-6">
+                <h3 class="text-xl font-bold text-white mb-4">Pending Orders</h3>
+                <div id="pending-orders" class="space-y-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div class="notification glass-effect p-4 text-white" id="notification"></div>
+
+    <script>
+        // Initial Data
+        let users = [{ username: 'admin', password: 'admin123', isAdmin: true }];
+        let menuItems = [];
+        let orders = [];
+        let currentUser = null;
+
+        // Auth Functions
+        function handleAuth() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            const user = users.find(u => u.username === username);
+            if (user) {
+                if (user.password === password) {
+                    currentUser = user;
+                    showNotification('Login successful!');
+                    if (user.isAdmin) {
+                        showAdminPortal();
+                    } else {
+                        showStudentPortal();
+                    }
+                } else {
+                    showNotification('Invalid password!');
+                }
+            } else {
+                users.push({ username, password, isAdmin: false });
+                currentUser = users[users.length - 1];
+                showNotification('Registration successful!');
+                showStudentPortal();
+            }
+        }
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('auth-section').classList.remove('hidden');
+            document.getElementById('student-portal').classList.add('hidden');
+            document.getElementById('admin-portal').classList.add('hidden');
+        }
+
+        // Menu Functions
+        function addMenuItem() {
+            const name = document.getElementById('item-name').value;
+            const price = document.getElementById('item-price').value;
+            const image = document.getElementById('item-image').value;
+            menuItems.push({ name, price, image });
+            updateMenuDisplay();
+            showNotification('Menu item added!');
+        }
+
+        function updateMenuDisplay() {
+            const studentMenu = document.getElementById('menu-items');
+            const adminMenu = document.getElementById('admin-menu-items');
+            
+            const menuHTML = menuItems.map((item, index) => `
+                <div class="bg-white rounded p-4 flex justify-between items-center">
+                    <div>
+                        <img src="${item.image || 'https://via.placeholder.com/100'}" class="w-20 h-20 object-cover rounded">
+                        <h4 class="font-bold">${item.name}</h4>
+                        <p>₹${item.price}</p>
+                    </div>
+                    ${currentUser?.isAdmin 
+                        ? `<button onclick="deleteMenuItem(${index})" class="text-red-500"><i class="bi bi-trash"></i></button>`
+                        : `<button onclick="addToOrder('${item.name}', ${item.price})" class="bg-green-500 text-white px-3 py-1 rounded">Add</button>`
+                    }
+                </div>
+            `).join('');
+
+            if (studentMenu) studentMenu.innerHTML = menuHTML;
+            if (adminMenu) adminMenu.innerHTML = menuHTML;
+        }
+
+        function deleteMenuItem(index) {
+            menuItems.splice(index, 1);
+            updateMenuDisplay();
+            showNotification('Menu item deleted!');
+        }
+
+        // Order Functions
+        function addToOrder(name, price) {
+            const order = orders.find(o => o.username === currentUser.username && o.status === 'pending');
+            if (!order) {
+                orders.push({
+                    username: currentUser.username,
+                    items: [{name, price}],
+                    status: 'pending',
+                    timeSlot: ''
+                });
+            } else {
+                order.items.push({name, price});
+            }
+            updateOrderDisplay();
+            showNotification('Item added to order!');
+        }
+
+        function placeOrder() {
+            const timeSlot = document.getElementById('time-slot').value;
+            if (!timeSlot) {
+                showNotification('Please select a time slot!');
+                return;
+            }
+
+            const order = orders.find(o => o.username === currentUser.username && o.status === 'pending');
+            if (order) {
+                order.timeSlot = timeSlot;
+                order.status = 'placed';
+                updateOrderDisplay();
+                updatePendingOrders();
+                showNotification('Order placed successfully!');
+            }
+        }
+
+        function updateOrderDisplay() {
+            const orderItems = document.getElementById('order-items');
+            const order = orders.find(o => o.username === currentUser.username && o.status === 'pending');
+            
+            if (order && orderItems) {
+                orderItems.innerHTML = order.items.map(item => `
+                    <div class="bg-white rounded p-2 flex justify-between">
+                        <span>${item.name}</span>
+                        <span>₹${item.price}</span>
+                    </div>
+                `).join('') + `
+                    <div class="font-bold text-white mt-2">
+                        Total: ₹${order.items.reduce((sum, item) => sum + Number(item.price), 0)}
+                    </div>
+                `;
+            }
+        }
+
+        function updatePendingOrders() {
+            const pendingOrders = document.getElementById('pending-orders');
+            if (pendingOrders) {
+                pendingOrders.innerHTML = orders
+                    .filter(o => o.status === 'placed')
+                    .map(order => `
+                        <div class="bg-white rounded p-4">
+                            <h4 class="font-bold">Order by ${order.username}</h4>
+                            <p>Pickup: ${order.timeSlot}</p>
+                            <div class="space-y-1">
+                                ${order.items.map(item => `
+                                    <div class="flex justify-between">
+                                        <span>${item.name}</span>
+                                        <span>₹${item.price}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <div class="mt-2 space-x-2">
+                                <button onclick="updateOrderStatus('${order.username}', 'accepted')" 
+                                    class="bg-green-500 text-white px-3 py-1 rounded">Accept</button>
+                                <button onclick="updateOrderStatus('${order.username}', 'rejected')"
+                                    class="bg-red-500 text-white px-3 py-1 rounded">Reject</button>
+                            </div>
+                        </div>
+                    `).join('');
+            }
+        }
+
+        function updateOrderStatus(username, status) {
+            const order = orders.find(o => o.username === username && o.status === 'placed');
+            if (order) {
+                order.status = status;
+                updatePendingOrders();
+                showNotification(`Order ${status}!`);
+            }
+        }
+
+        // UI Functions
+        function showStudentPortal() {
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('student-portal').classList.remove('hidden');
+            document.getElementById('admin-portal').classList.add('hidden');
+            document.getElementById('student-name').textContent = currentUser.username;
+            updateMenuDisplay();
+            updateOrderDisplay();
+        }
+
+        function showAdminPortal() {
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('student-portal').classList.add('hidden');
+            document.getElementById('admin-portal').classList.remove('hidden');
+            updateMenuDisplay();
+            updatePendingOrders();
+        }
+
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add('show');
+            setTimeout(() => notification.classList.remove('show'), 3000);
+        }
+
+        // Initialize with some menu items
+        menuItems = [
+            { name: 'Burger', price: 99, image: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=400' },
+            { name: 'Pizza', price: 199, image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400' },
+            { name: 'Pasta', price: 149, image: 'https://images.unsplash.com/photo-1563379926898-05f4575a45d8?w=400' }
+        ];
+        updateMenuDisplay();
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
